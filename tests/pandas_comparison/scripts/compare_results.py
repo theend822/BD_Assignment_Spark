@@ -75,15 +75,15 @@ def main():
     try:
         # Load pandas results
         print("Loading pandas results...")
-        pandas_original = pd.read_parquet("../results/pandas_original.parquet")
-        pandas_transformed = pd.read_parquet("../results/pandas_transformed.parquet")  
-        pandas_inversed = pd.read_parquet("../results/pandas_inversed.parquet")
+        pandas_original = pd.read_parquet("../data/pandas_original.parquet")
+        pandas_transformed = pd.read_parquet("../data/pandas_transformed.parquet")  
+        pandas_inversed = pd.read_parquet("../data/pandas_inversed.parquet")
         
         # Load Spark results
         print("Loading Spark results...")
-        spark_original = pd.read_parquet("../results/spark_original.parquet")
-        spark_transformed = pd.read_parquet("../results/spark_transformed.parquet")
-        spark_inversed = pd.read_parquet("../results/spark_inversed.parquet")
+        spark_original = pd.read_parquet("../data/spark_original.parquet")
+        spark_transformed = pd.read_parquet("../data/spark_transformed.parquet")
+        spark_inversed = pd.read_parquet("../data/spark_inversed.parquet")
         
         # Compare original data (should be identical)
         compare_dataframes(pandas_original, spark_original, "Pandas Original", "Spark Original")

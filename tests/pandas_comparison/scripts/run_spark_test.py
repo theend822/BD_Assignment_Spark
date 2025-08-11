@@ -36,9 +36,9 @@ def main():
         inversed = transformer.inverse_transform(transformed)
         
         # Convert to Pandas and save results to test results directory
-        data.toPandas().to_parquet("../results/spark_original.parquet")
-        transformed.toPandas().to_parquet("../results/spark_transformed.parquet")
-        inversed.toPandas().to_parquet("../results/spark_inversed.parquet")
+        data.toPandas().to_parquet("../data/spark_original.parquet")
+        transformed.toPandas().to_parquet("../data/spark_transformed.parquet")
+        inversed.toPandas().to_parquet("../data/spark_inversed.parquet")
         
         print("✅ Spark version completed")
         print("Results saved to:")

@@ -32,9 +32,9 @@ def main():
     inversed = transformer.inverse_transform(transformed.copy())
     
     # Save results to test results directory
-    data.to_parquet("../results/pandas_original.parquet")
-    transformed.to_parquet("../results/pandas_transformed.parquet")
-    inversed.to_parquet("../results/pandas_inversed.parquet")
+    data.to_parquet("../data/pandas_original.parquet")
+    transformed.to_parquet("../data/pandas_transformed.parquet")
+    inversed.to_parquet("../data/pandas_inversed.parquet")
     
     print("✅ Pandas version completed")
     print("Results saved to:")
