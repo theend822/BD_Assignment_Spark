@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bd_transformer_spark"
+version = "1.0.0"
+description = "Spark-based boundary detection and data transformation library"
+requires-python = ">=3.8"
+dependencies = [
+    "pyspark>=3.0.0",
+    "numpy>=1.20.0",
+    "pyyaml>=5.4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "pytest-spark>=0.6.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["bd_transformer*"]
