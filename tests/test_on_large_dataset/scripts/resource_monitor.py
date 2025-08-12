@@ -10,14 +10,11 @@ import numpy as np
 import yaml
 from pyspark.sql import SparkSession
 from pyspark import SparkConf
-
-# Add parent directory to path to import bd_transformer
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 from bd_transformer.transformer import Transformer
 
 
 class ResourceMonitor:
-    def __init__(self, output_dir="results"):
+    def __init__(self, output_dir="../data/resource_monitoring"):
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
         
@@ -119,19 +116,11 @@ class ResourceMonitor:
         # Save plot
         plot_path = os.path.join(self.output_dir, f'resource_usage_{datetime.now().strftime("%Y%m%d_%H%M%S")}.png')
         plt.savefig(plot_path, dpi=300, bbox_inches='tight')
-        plt.show()
+        plt.close()
         
         print(f"Resource usage plot saved to: {plot_path}")
         
-        # Print summary statistics
-        print("\n=== Resource Usage Summary ===")
-        print(f"Average CPU Usage: {np.mean(self.cpu_data):.1f}%")
-        print(f"Max CPU Usage: {np.max(self.cpu_data):.1f}%")
-        print(f"Average Memory Usage: {np.mean(self.memory_data):.1f} GB")
-        print(f"Max Memory Usage: {np.max(self.memory_data):.1f} GB")
-        print(f"Total Disk I/O: {max(self.disk_io_data):.1f} GB")
         
-
 def get_system_specs():
     """Get system specifications"""
     specs = {
@@ -140,7 +129,6 @@ def get_system_specs():
         'total_memory_gb': psutil.virtual_memory().total / (1024**3),
         'available_memory_gb': psutil.virtual_memory().available / (1024**3),
         'disk_usage': psutil.disk_usage('/'),
-        'python_version': sys.version,
     }
     
     # Try to get CPU info (platform-specific)
@@ -175,12 +163,11 @@ def setup_spark_session(memory_limit="4g"):
     return spark
 
 
-def run_transformation_test(data_path, config_path, memory_limit="4g", output_dir="results"):
+def run_transformation_test(data_path, config_path, memory_limit="4g", output_dir="../data"):
     """Run the transformation test with resource monitoring"""
     
     print("=== BD Transformer Large Dataset Test ===")
     print(f"Data path: {data_path}")
-    print(f"Config path: {config_path}")
     print(f"Memory limit: {memory_limit}")
     print(f"Output directory: {output_dir}")
     
@@ -296,14 +283,10 @@ def run_transformation_test(data_path, config_path, memory_limit="4g", output_di
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run BD Transformer test on large dataset with resource monitoring')
-    parser.add_argument('--data_path', type=str, default='../data/', 
-                       help='Path to the large dataset directory')
-    parser.add_argument('--config_path', type=str, default='../../../config/config.yaml',
-                       help='Path to the configuration file')
-    parser.add_argument('--memory_limit', type=str, default='4g',
-                       help='Spark memory limit (e.g., 4g, 8g)')
-    parser.add_argument('--output_dir', type=str, default='../results/',
-                       help='Directory to save results')
+    parser.add_argument('--data_path', type=str, default='../data/',)
+    parser.add_argument('--config_path', type=str, default='../../../config/config.yaml',)
+    parser.add_argument('--memory_limit', type=str, default='4g',)
+    parser.add_argument('--output_dir', type=str, default='../data/resource_monitoring/',)
     
     args = parser.parse_args()
     

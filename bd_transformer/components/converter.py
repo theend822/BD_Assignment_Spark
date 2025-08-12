@@ -138,30 +138,32 @@ class Converter:
         
         # Apply clipping if enabled
         if self._clip_oor:
-            new_col = when(new_col < self._min_val, self._min_val) \
-                     .when(new_col > self._max_val, self._max_val) \
+            new_col = when(new_col < lit(self._min_val), lit(self._min_val)) \
+                     .when(new_col > lit(self._max_val), lit(self._max_val)) \
                      .otherwise(new_col)
         
         return df.withColumn(column_name, new_col)
 
-    def inverse_convert(self, df: DataFrame, column_name: str) -> DataFrame:
+    def inverse_convert(self, data_expr, valid_expr, error_expr):
         """
         Inverse convert a Spark DataFrame column back to original format.
         Returns DataFrame with data, valid, and error columns.
         """
-        data_col = col(column_name)
+        data_col = data_expr
+        valid_col = valid_expr  
+        error_col = error_expr
         
         # Create valid and error columns
         if self._clip_oor:
             # If clipping, clip the data and mark all as valid
-            data_col = when(data_col < self._min_val, self._min_val) \
-                      .when(data_col > self._max_val, self._max_val) \
+            data_col = when(data_col < lit(self._min_val), lit(self._min_val)) \
+                      .when(data_col > lit(self._max_val), lit(self._max_val)) \
                       .otherwise(data_col)
             valid_col = lit(True).cast(BooleanType())
             error_col = lit("").cast(StringType())
         else:
             # If not clipping, mark out-of-range values as invalid
-            oor_condition = (data_col < self._min_val) | (data_col > self._max_val)
+            oor_condition = (data_col < lit(self._min_val)) | (data_col > lit(self._max_val))
             valid_col = ~oor_condition
             error_col = when(oor_condition, "Out of range").otherwise("")
             # Set out-of-range values to null
@@ -176,15 +178,5 @@ class Converter:
             if self._prefix or self._suffix:
                 data_col = concat(lit(self._prefix), data_col, lit(self._suffix))
         
-        # Preserve row_id if it exists in the input DataFrame
-        select_cols = [
-            data_col.alias(const.DATA_COL_NAME),
-            valid_col.alias(const.VALID_COL_NAME),
-            error_col.alias(const.ERROR_COL_NAME)
-        ]
-        
-        # Check if row_id column exists and preserve it
-        if "row_id" in df.columns:
-            select_cols.append(col("row_id"))
-
-        return df.select(*select_cols)
+        # Return tuple of expressions instead of DataFrame
+        return data_col, valid_col, error_col

@@ -1,6 +1,9 @@
 # Test artifacts
 tests/comparison/artifacts/
 
+# Test data
+tests/test_on_large_dataset/data/*.parquet
+
 # Python
 __pycache__/
 *.py[cod]

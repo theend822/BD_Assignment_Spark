@@ -1,0 +1,7 @@
+=== System Specifications ===
+cpu_count: 10
+cpu_count_logical: 10
+total_memory_gb: 24.0
+available_memory_gb: 10.42266845703125
+disk_usage: sdiskusage(total=245107195904, used=145571381248, free=99535814656, percent=59.4)
+cpu_model: Unable to determine

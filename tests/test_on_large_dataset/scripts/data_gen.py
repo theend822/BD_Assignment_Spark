@@ -37,12 +37,9 @@ def generate_data(file_path, num_rows, chunk_size):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Generate large dataset for BD Transformer testing')
-    parser.add_argument("--file_path", type=str, default="../data/", 
-                       help='Directory to save generated parquet files')
-    parser.add_argument("--num_rows", type=int, default=350000000,
-                       help='Total number of rows to generate (default: 350M for ~80GB)')
-    parser.add_argument("--chunk_size", type=int, default=50000000,
-                       help='Number of rows per parquet file (default: 50M)')
+    parser.add_argument("--file_path", type=str, default="../data/",)
+    parser.add_argument("--num_rows", type=int, default=350000000,)
+    parser.add_argument("--chunk_size", type=int, default=50000000,)
     args = parser.parse_args()
     
     print(f"Generating {args.num_rows:,} rows in chunks of {args.chunk_size:,}")

@@ -1,7 +1,5 @@
 # Large Dataset Performance Testing
 
-This directory contains scripts and results for testing BD Transformer performance on datasets that exceed available system memory (~20x machine RAM).
-
 ## Testing Approach
 
 ### 1. Dataset Generation (80GB Dataset)
@@ -28,16 +26,15 @@ This directory contains scripts and results for testing BD Transformer performan
 
 ### 3. System Specifications (Mac Mini)
 **Hardware Configuration:**
-- **CPU**: Apple M2 Chip (8-core CPU)
-- **Memory**: 16GB Unified Memory
-- **Storage**: 512GB SSD
-- **Architecture**: ARM64
+- **CPU**: Apple M4 Chip
+- **Memory**: 24GB
+- **Storage**: 256GB SSD
 
 **Software Environment:**
-- **OS**: macOS Sonoma
-- **Python**: 3.11+
-- **Spark**: 3.5.0+
-- **Java**: OpenJDK 11
+- **OS**: macOS Sequoia
+- **Python**: 3.12.7
+- **PySpark**: 4.0.0
+- **Java**: OpenJDK 21
 
 ### 4. Resource Monitoring with psutil
 **Metrics Collected:**
@@ -82,93 +79,87 @@ test_on_large_dataset/
 ### Step 1: Generate Large Dataset
 ```bash
 cd scripts/
-python data_gen_80gb.py --file_path ../data/ --num_rows 350000000 --chunk_size 50000000
+python data_gen.py
 ```
 
 ### Step 2: Run Performance Test
 ```bash
-python resource_monitor.py \
-    --data_path ../data/ \
-    --config_path ../../../config/config.yaml \
-    --memory_limit 4g \
-    --output_dir ../results/
+python resource_monitor.py
 ```
 
-### Step 3: Analyze Results
-- View generated plots in `results/` directory
+### Step 3: Verify Results
+- View generated parquet in `data/` directory
+- View plots in `resource_monitoring/` directory
 - Check timing measurements in `timing_results.txt`
 - Review system specifications in `system_specs.txt`
 
-## Expected Performance Characteristics
 
-### Memory Efficiency
-- **Lazy Evaluation**: Spark operations should not load entire dataset into memory
-- **Streaming Processing**: Data processed in chunks/partitions
-- **Memory Usage**: Should stay within 4GB limit despite 80GB dataset
 
-### CPU Utilization
-- **Multi-core Usage**: Should utilize available CPU cores efficiently
-- **Phase Variations**: Different utilization patterns for fit/transform/inverse operations
+## Test Results
 
-### Disk I/O Patterns
-- **Sequential Reads**: Efficient parquet file processing
-- **Minimal Writes**: Limited intermediate data materialization
-- **I/O Optimization**: Leveraging columnar storage benefits
+### Dataset Generation
+![Data Generation](https://drive.google.com/uc?id=1ygn6vR0E1Hzjez1hvfujOhG3uDZyPxjK)
 
-## Key Performance Indicators
+### Resource Monitoring Results
+![Resource Usage Plot](https://drive.google.com/uc?id=1a-l0bGQEqHa75YATz6iupjjq7btmDMAz)
 
-### Timing Metrics
-1. **fit() Duration**: Time to compute normalization parameters
-2. **transform() Duration**: Time to apply transformations
-3. **inverse_transform() Duration**: Time to recover original formats
-4. **Total Processing Time**: End-to-end operation duration
 
-### Resource Metrics
-1. **Peak Memory Usage**: Maximum RAM consumption
-2. **Average CPU Usage**: Processing efficiency
-3. **Total Disk I/O**: Data movement overhead
-4. **Memory Efficiency Ratio**: Processing capability vs. memory constraint
+### Execution Results
+![Script Execution](https://drive.google.com/uc?id=1XpNUTWUTmTrtwCUiSuleZRfVSq2cILvX)
 
-### Scalability Indicators
-1. **Data-to-Memory Ratio**: Successfully processing 20x memory size
-2. **Partition Utilization**: Effective distributed processing
-3. **Resource Stability**: Consistent performance under memory pressure
 
-## Optimization Strategies
+## Issues Encountered and Solutions
 
-### Memory Management
-- **Partition Size Tuning**: Optimal chunk sizes for available memory
-- **Caching Strategy**: Strategic use of Spark caching for reused data
-- **Garbage Collection**: Efficient JVM memory management
+### 1. Import Conflicts Due to Missing Virtual Environment
+**Problem:** Multiple BD Transformer versions (pandas and Spark) installed simultaneously caused import conflicts, with Python defaulting to the pandas version even when running Spark code.
 
-### Performance Tuning
-- **Adaptive Query Execution**: Dynamic optimization based on data characteristics
-- **Columnar Processing**: Leveraging Parquet format benefits
-- **Predicate Pushdown**: Minimizing data movement
+**Symptoms:**
+```python
+ERROR: Converter.fit() takes 2 positional arguments but 3 were given
+```
 
-### Monitoring Enhancements
-- **Real-time Alerts**: Memory threshold monitoring
-- **Bottleneck Identification**: CPU/I/O constraint analysis
-- **Performance Regression Detection**: Baseline comparison capabilities
+**Root Cause:** Both `bd_transformer` (pandas) and `bd_transformer_spark` packages were installed in the same environment, causing Python to import the wrong version.
 
-## Troubleshooting
+**Solution:**
+- Uninstalled conflicting pandas version: `pip uninstall bd_transformer -y`
+- **Recommendation:** Use separate virtual environments for different implementations
 
-### Common Issues
-1. **OutOfMemoryError**: Reduce partition size or increase memory limits
-2. **Slow Performance**: Check disk I/O bottlenecks and partition distribution
-3. **Resource Monitoring Gaps**: Ensure psutil compatibility with system
+### 2. Out-of-Memory Error in inverse_transform()
+**Problem:** Original join-based approach for inverse_transform() caused memory exhaustion during row-id joins.
 
-### Performance Tips
-1. **SSD Storage**: Use fast storage for better I/O performance
-2. **Memory Allocation**: Leave headroom for OS and other processes
-3. **Java GC Tuning**: Optimize garbage collection for Spark workloads
+**Symptoms:**
+```
+org.apache.spark.memory.SparkOutOfMemoryError: Unable to acquire 65536 bytes of memory
+```
 
-## Results Analysis
+**Root Cause:** Multiple DataFrame joins with `row_id` required extensive shuffling and memory allocation.
 
-Results from this testing will demonstrate:
-- BD Transformer's ability to handle datasets exceeding system memory
-- Resource utilization patterns and efficiency
-- Scalability characteristics under memory constraints
-- Performance bottlenecks and optimization opportunities
+**Original Implementation Issues:**
+- Created `row_id` column with `monotonically_increasing_id()`
+- Performed separate joins for each column transformation
+- Multiple intermediate DataFrame materializations
 
-The generated plots and metrics provide insights into the library's distributed processing capabilities and help identify areas for further optimization.
+**Optimization Solution:**
+- **Expression-Based Processing:** Return tuples of Spark expressions instead of DataFrames
+- **Single Select Operation:** Process all columns in one `select()` statement
+- **Eliminated Joins:** Removed row_id dependency and join operations
+- **Lazy Evaluation:** Allow Spark's Catalyst optimizer to process entire pipeline efficiently
+
+**Code Changes:**
+```python
+# Before: Multiple joins approach
+def inverse_transform(self, data):
+    result_df = data.withColumn("row_id", monotonically_increasing_id())
+    for column_name in self.config:
+        # Separate processing and joining for each column
+        result_df = result_df.join(processed_column, on="row_id")
+
+# After: Expression-based approach  
+def inverse_transform(self, data):
+    col_list = []
+    for column_name in self.config:
+        data_expr, valid_expr, error_expr = self.normalizers[column_name].inverse_normalize(column_name)
+        data_expr, valid_expr, error_expr = self.converters[column_name].inverse_convert(data_expr, valid_expr, error_expr)
+        col_list.extend([data_expr.alias(f"{column_name}_data"), valid_expr.alias(f"{column_name}_valid"), error_expr.alias(f"{column_name}_error")])
+    return data.select(*col_list)
+```

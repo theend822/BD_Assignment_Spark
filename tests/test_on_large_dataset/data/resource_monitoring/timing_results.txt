@@ -1,0 +1,6 @@
+=== Timing Results ===
+data_loading: 1.56 seconds
+fit: 84.52 seconds
+transform: 0.18 seconds
+inverse_transform: 0.18 seconds
+total: 86.44 seconds

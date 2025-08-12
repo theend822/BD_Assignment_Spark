@@ -52,32 +52,23 @@ class Transformer:
         """
         Inverse transform using pandas-style approach with row-aligned operations.
         """
-        # Add unique row IDs ONCE at the beginning for efficient joining
-        from pyspark.sql.functions import monotonically_increasing_id
-        
-        result_df = data.withColumn("row_id", monotonically_increasing_id())
+        col_list = []
         
         for column_name in self.config:
-            # Apply inverse normalization - now preserves row_id automatically
-            inverse_normalized = self.normalizers[column_name].inverse_normalize(
-                result_df, column_name
+            # Step 1: Get tuple from normalizer
+            data_expr, valid_expr, error_expr = self.normalizers[column_name].inverse_normalize(column_name)
+            
+            # Step 2: Pass tuple to converter, get modified tuple back
+            data_expr, valid_expr, error_expr = self.converters[column_name].inverse_convert(
+                data_expr, valid_expr, error_expr
             )
             
-            # Apply inverse conversion - also preserves row_id automatically
-            inverse_converted = self.converters[column_name].inverse_convert(
-                inverse_normalized, const.DATA_COL_NAME
-            )
-            
-            # Join on row IDs and replace the target column
-            result_df = result_df.join(
-                inverse_converted.select("row_id", col(const.DATA_COL_NAME).alias(f"new_{column_name}")),
-                on="row_id"
-            ).select(
-                # Select all columns, replacing the target column with converted data
-                *[col(c) if c != column_name else col(f"new_{column_name}").alias(column_name) 
-                  for c in result_df.columns if c != "row_id"],  # Keep other columns
-                "row_id"  # Keep row_id for next iteration
-            )
-            
-        # Remove row IDs at the end
-        return result_df.drop("row_id")
+            # Step 3: Add expressions to list with proper aliases
+            col_list.extend([
+                data_expr.alias(f"{column_name}_data"),
+                valid_expr.alias(f"{column_name}_valid"),
+                error_expr.alias(f"{column_name}_error")
+            ])
+        
+        # Step 4: Create final DataFrame here (and only here!)
+        return data.select(*col_list)
